@@ -196,9 +196,6 @@ const char *extensions[] = {
     #ifdef NO_SYMLINKS
     "nosymlink",
     #endif
-    #ifdef NO_USER_ORDER
-    "nouserorder",
-    #endif
     NULL
 };
 
@@ -684,13 +681,11 @@ extern int check_conditions(const file_t * const restrict file1, const file_t * 
     return 1;
   }
 
-#ifndef NO_USER_ORDER
   /* Exclude based on -I/--isolate */
   if (ISFLAG(flags, F_ISOLATE) && (file1->user_order == file2->user_order)) {
     LOUD(fprintf(stderr, "check_conditions: files ignored: parameter isolation\n"));
     return -3;
   }
-#endif /* NO_USER_ORDER */
 
   /* Exclude based on -1/--one-file-system */
   if (ISFLAG(flags, F_ONEFS) && (file1->device != file2->device)) {
@@ -708,6 +703,13 @@ extern int check_conditions(const file_t * const restrict file1, const file_t * 
           )) {
     return -5;
     LOUD(fprintf(stderr, "check_conditions: no match: permissions/ownership differ (-p on)\n"));
+  }
+
+  /* Exclude on -F if neither is in the first list */
+  /* fixme: if f1 is user_order==1 and f2 is user_order==1 but f3 (not tested yet) is user_order==0 then it won't be tested */
+  if (ISFLAG(a_flags, EA_COMPAREONLYFIRST) && (file1->user_order > 1 && file2->user_order > 1)) {
+    LOUD(fprintf(stderr, "check_conditions: file comparison skipped: neither in first parameter\n"));
+    return -6;
   }
 
   /* Hard link and symlink + '-s' check */
@@ -822,9 +824,7 @@ static file_t *init_newfile(const size_t len, file_t * restrict * const restrict
   if (!newfile->d_name) oom("init_newfile() filename");
 
   newfile->next = *filelistp;
-#ifndef NO_USER_ORDER
-  newfile->user_order = user_item_count;
-#endif
+  newfile->user_order = user_item_count; // starts at 1
   newfile->size = -1;
   newfile->duplicates = NULL;
   return newfile;
@@ -1337,6 +1337,7 @@ static file_t **checkmatch(filetree_t * restrict tree, file_t * const restrict f
         cantmatch = 1;
         cmpresult = 0;
         break;
+    case -6: return NULL;   /* neither in first parameter */
     default: break;
   }
 
@@ -1543,27 +1544,22 @@ extern unsigned int get_max_dupes(const file_t *files, unsigned int * const rest
   return groups;
 }
 
-
-#ifndef NO_USER_ORDER
 static int sort_pairs_by_param_order(file_t *f1, file_t *f2)
 {
-  if (!ISFLAG(flags, F_USEPARAMORDER)) return 0;
   if (f1 == NULL || f2 == NULL) nullptr("sort_pairs_by_param_order()");
   if (f1->user_order < f2->user_order) return -sort_direction;
   if (f1->user_order > f2->user_order) return sort_direction;
   return 0;
 }
-#endif
-
 
 static int sort_pairs_by_mtime(file_t *f1, file_t *f2)
 {
   if (f1 == NULL || f2 == NULL) nullptr("sort_pairs_by_mtime()");
 
-#ifndef NO_USER_ORDER
-  int po = sort_pairs_by_param_order(f1, f2);
-  if (po != 0) return po;
-#endif /* NO_USER_ORDER */
+  if (ISFLAG(flags, F_USEPARAMORDER)) {
+    int po = sort_pairs_by_param_order(f1, f2);
+    if (po != 0) return po;
+  }
 
   if (f1->mtime < f2->mtime) return -sort_direction;
   else if (f1->mtime > f2->mtime) return sort_direction;
@@ -1577,10 +1573,10 @@ static int sort_pairs_by_filename(file_t *f1, file_t *f2)
 {
   if (f1 == NULL || f2 == NULL) nullptr("sort_pairs_by_filename()");
 
-#ifndef NO_USER_ORDER
-  int po = sort_pairs_by_param_order(f1, f2);
-  if (po != 0) return po;
-#endif /* NO_USER_ORDER */
+  if (ISFLAG(flags, F_USEPARAMORDER)) {
+    int po = sort_pairs_by_param_order(f1, f2);
+    if (po != 0) return po;
+  }
 
   return numeric_sort(f1->d_name, f2->d_name, sort_direction);
 }
@@ -1657,15 +1653,14 @@ static inline void help_text(void)
   printf(" -D --debug       \toutput debug statistics after completion\n");
 #endif
   printf(" -f --omit-first  \tomit the first file in each set of matches\n");
+  printf(" -F --compare-first  \tonly compare if file is in the first directory\n");
   printf(" -h --help        \tdisplay this help message\n");
 #ifndef NO_HARDLINKS
   printf(" -H --hard-links  \ttreat any linked files as duplicate files. Normally\n");
   printf("                  \tlinked files are treated as non-duplicates for safety\n");
 #endif
   printf(" -i --reverse     \treverse (invert) the match sort order\n");
-#ifndef NO_USER_ORDER
   printf(" -I --isolate     \tfiles in the same specified directory won't match\n");
-#endif
   printf(" -j --json        \tproduce JSON (machine-readable) output\n");
 /*  printf(" -K --skip-hash   \tskip full file hashing (may be faster; 100%% safe)\n");
     printf("                  \tWARNING: in development, not fully working yet!\n"); */
@@ -1687,9 +1682,7 @@ static inline void help_text(void)
   printf("                  \tprompting the user\n");
   printf(" -o --order=BY    \tselect sort order for output, linking and deleting; by\n");
   printf("                  \tmtime (BY=time) or filename (BY=name, the default)\n");
-#ifndef NO_USER_ORDER
   printf(" -O --param-order  \tParameter order is more important than selected -o sort\n");
-#endif
 #ifndef NO_PERMS
   printf(" -p --permissions \tdon't consider files with different owner/group or\n");
   printf("                  \tpermission bits as duplicates\n");
@@ -1801,6 +1794,7 @@ int main(int argc, char **argv)
     { "chunk-size", 1, 0, 'C' },
     { "debug", 0, 0, 'D' },
     { "delete", 0, 0, 'd' },
+    { "compare-first", 0, 0, 'F' },
     { "omitfirst", 0, 0, 'f' }, //LEGACY
     { "omit-first", 0, 0, 'f' },
     { "hardlinks", 0, 0, 'H' }, //LEGACY
@@ -1851,7 +1845,7 @@ int main(int argc, char **argv)
 #define GETOPT getopt
 #endif
 
-#define GETOPT_STRING "@01ABC:DdfHhIijKLlMmNnOo:P:pQqRrSsTtUuVvX:Zz"
+#define GETOPT_STRING "@01ABC:DdFfHhIijKLlMmNnOo:P:pQqRrSsTtUuVvX:Zz"
 
 /* Windows buffers our stderr output; don't let it do that */
 #ifdef ON_WINDOWS
@@ -1934,6 +1928,11 @@ int main(int argc, char **argv)
       SETFLAG(flags, F_DEBUG);
 #endif
       break;
+    case 'F':
+      SETFLAG(a_flags, EA_COMPAREONLYFIRST);
+      LOUD(fprintf(stderr, "opt: compare only if in first directory (--compare-first)\n");)
+      fprintf(stderr, "\nWARNING: -F/--compare-first will not report duplicates if one file is not in first directory\n\n");
+      break;
     case 'f':
       SETFLAG(a_flags, FA_OMITFIRST);
       LOUD(fprintf(stderr, "opt: omit first match from each match set (--omit-first)\n");)
@@ -1956,7 +1955,6 @@ int main(int argc, char **argv)
       SETFLAG(flags, F_REVERSESORT);
       LOUD(fprintf(stderr, "opt: sort order reversal enabled (--reverse)\n");)
       break;
-#ifndef NO_USER_ORDER
     case 'I':
       SETFLAG(flags, F_ISOLATE);
       LOUD(fprintf(stderr, "opt: intra-parameter match isolation enabled (--isolate)\n");)
@@ -1965,12 +1963,6 @@ int main(int argc, char **argv)
       SETFLAG(flags, F_USEPARAMORDER);
       LOUD(fprintf(stderr, "opt: parameter order takes precedence (--param-order)\n");)
       break;
-#else
-    case 'I':
-    case 'O':
-      fprintf(stderr, "warning: -I and -O are disabled and ignored in this build\n");
-      break;
-#endif
     case 'j':
       SETFLAG(a_flags, FA_PRINTJSON);
       LOUD(fprintf(stderr, "opt: print output in JSON format (--print-json)\n");)

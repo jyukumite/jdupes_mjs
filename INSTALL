@@ -33,7 +33,6 @@ LOW_MEMORY             Build for extremely low-RAM environments (CAUTION!)
 NO_PERMS               Disable permission options and code
 NO_HARDLINKS           Disable hard linking options and code
 NO_SYMLINKS            Disable symbolic linking options and code
-NO_USER_ORDER          Disable -I/-O options and code
 NO_UNICODE             [Windows only] disable all Unicode support
 
 The LOW_MEMORY option tweaks various knobs in the program to lower total

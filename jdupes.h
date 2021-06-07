@@ -144,6 +144,7 @@ extern uint_fast32_t flags, a_flags;
 #define FA_MAKESYMLINKS		(1U << 8)
 #define FA_PRINTNULL		(1U << 9)
 #define FA_PRINTJSON		(1U << 10)
+#define EA_COMPAREONLYFIRST	(1U << 11)
 
 /* Per-file true/false flags */
 #define FF_VALID_STAT		(1U << 0)
@@ -190,9 +191,7 @@ typedef struct _file {
   jdupes_hash_t filehash;
   time_t mtime;
   uint32_t flags;  /* Status flags */
-#ifndef NO_USER_ORDER
   unsigned int user_order; /* Order of the originating command-line parameter */
-#endif
 #ifndef NO_HARDLINKS
  #ifndef ON_WINDOWS
   nlink_t nlink;
