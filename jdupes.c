@@ -707,7 +707,7 @@ extern int check_conditions(const file_t * const restrict file1, const file_t * 
 
   /* Exclude on -F if neither is in the first list */
   /* fixme: if f1 is user_order==1 and f2 is user_order==1 but f3 (not tested yet) is user_order==0 then it won't be tested */
-  if (ISFLAG(a_flags, EA_COMPAREONLYFIRST) && (file1->user_order > 1 && file2->user_order > 1)) {
+  if (ISFLAG(a_flags, FA_COMPAREONLYFIRST) && (file1->user_order > 1 && file2->user_order > 1)) {
     LOUD(fprintf(stderr, "check_conditions: file comparison skipped: neither in first parameter\n"));
     return -6;
   }
@@ -1929,7 +1929,7 @@ int main(int argc, char **argv)
 #endif
       break;
     case 'F':
-      SETFLAG(a_flags, EA_COMPAREONLYFIRST);
+      SETFLAG(a_flags, FA_COMPAREONLYFIRST);
       LOUD(fprintf(stderr, "opt: compare only if in first directory (--compare-first)\n");)
       fprintf(stderr, "\nWARNING: -F/--compare-first will not report duplicates if one file is not in first directory\n\n");
       break;
