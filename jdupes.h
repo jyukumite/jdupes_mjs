@@ -144,7 +144,8 @@ extern uint_fast32_t flags, a_flags;
 #define FA_MAKESYMLINKS		(1U << 8)
 #define FA_PRINTNULL		(1U << 9)
 #define FA_PRINTJSON		(1U << 10)
-#define EA_COMPAREONLYFIRST	(1U << 11)
+#define FA_COMPAREONLYFIRST	(1U << 11)
+#define FA_EMITONLYFIRST	(1U << 12)
 
 /* Per-file true/false flags */
 #define FF_VALID_STAT		(1U << 0)

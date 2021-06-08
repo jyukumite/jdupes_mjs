@@ -707,7 +707,7 @@ extern int check_conditions(const file_t * const restrict file1, const file_t * 
 
   /* Exclude on -F if neither is in the first list */
   /* fixme: if f1 is user_order==1 and f2 is user_order==1 but f3 (not tested yet) is user_order==0 then it won't be tested */
-  if (ISFLAG(a_flags, EA_COMPAREONLYFIRST) && (file1->user_order > 1 && file2->user_order > 1)) {
+  if (ISFLAG(a_flags, FA_COMPAREONLYFIRST) && (file1->user_order > 1 && file2->user_order > 1)) {
     LOUD(fprintf(stderr, "check_conditions: file comparison skipped: neither in first parameter\n"));
     return -6;
   }
@@ -1652,6 +1652,7 @@ static inline void help_text(void)
 #ifdef DEBUG
   printf(" -D --debug       \toutput debug statistics after completion\n");
 #endif
+  printf(" -e --emit-first  \temit files from the first parameter only (useful with -F)\n");
   printf(" -f --omit-first  \tomit the first file in each set of matches\n");
   printf(" -F --compare-first  \tonly compare if file is in the first directory\n");
   printf(" -h --help        \tdisplay this help message\n");
@@ -1794,6 +1795,7 @@ int main(int argc, char **argv)
     { "chunk-size", 1, 0, 'C' },
     { "debug", 0, 0, 'D' },
     { "delete", 0, 0, 'd' },
+    { "emit-first", 0, 0, 'e' },
     { "compare-first", 0, 0, 'F' },
     { "omitfirst", 0, 0, 'f' }, //LEGACY
     { "omit-first", 0, 0, 'f' },
@@ -1845,7 +1847,7 @@ int main(int argc, char **argv)
 #define GETOPT getopt
 #endif
 
-#define GETOPT_STRING "@01ABC:DdFfHhIijKLlMmNnOo:P:pQqRrSsTtUuVvX:Zz"
+#define GETOPT_STRING "@01ABC:DdeFfHhIijKLlMmNnOo:P:pQqRrSsTtUuVvX:Zz"
 
 /* Windows buffers our stderr output; don't let it do that */
 #ifdef ON_WINDOWS
@@ -1928,8 +1930,12 @@ int main(int argc, char **argv)
       SETFLAG(flags, F_DEBUG);
 #endif
       break;
+    case 'e':
+      SETFLAG(a_flags, FA_EMITONLYFIRST);
+      LOUD(fprintf(stderr, "opt: emit only files from the first directory (--emit-first)\n");)
+      break;
     case 'F':
-      SETFLAG(a_flags, EA_COMPAREONLYFIRST);
+      SETFLAG(a_flags, FA_COMPAREONLYFIRST);
       LOUD(fprintf(stderr, "opt: compare only if in first directory (--compare-first)\n");)
       fprintf(stderr, "\nWARNING: -F/--compare-first will not report duplicates if one file is not in first directory\n\n");
       break;

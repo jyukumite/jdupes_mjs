@@ -109,7 +109,7 @@ static void json_escape(const char * restrict string, char * restrict const targ
 extern void printjson(file_t * restrict files, const int argc, char **argv)
 {
   file_t * restrict tmpfile;
-  int arg = 0, comma = 0, len = 0;
+  int arg = 0, comma = 0, len = 0, printed = 0, skippedfirst = 0;
   char *temp = string_malloc(PATH_MAX * 2);
   char *temp2 = string_malloc(PATH_MAX * 2);
   char *temp_insert = temp;
@@ -136,24 +136,32 @@ extern void printjson(file_t * restrict files, const int argc, char **argv)
   printf("  \"matchSets\": [\n");
   while (files != NULL) {
     if (ISFLAG(files->flags, FF_HAS_DUPES)) {
-      if (comma) printf(",\n");
-      printf("    {\n      \"fileSize\": %" PRIdMAX ",\n      \"fileList\": [\n        { \"filePath\": \"", (intmax_t)files->size);
-      sprintf(temp, "%s", files->d_name);
-      json_escape(temp, temp2);
-      fwprint(stdout, temp2, 0);
-      printf("\"");
-      tmpfile = files->duplicates;
-      while (tmpfile != NULL) {
-        printf(" },\n        { \"filePath\": \"");
-        sprintf(temp, "%s", tmpfile->d_name);
-        json_escape(temp, temp2);
-        fwprint(stdout, temp2, 0);
-        printf("\"");
-        tmpfile = tmpfile->duplicates;
-      }
-      printf(" }\n      ]\n    }");
+      tmpfile = files;
+      printed = skippedfirst = 0;
+      do {
+        if (!ISFLAG(a_flags, FA_EMITONLYFIRST) || files->user_order == 1) {
+          if (skippedfirst || !ISFLAG(a_flags, FA_OMITFIRST)) {
+            if (!printed) {
+              if (comma) printf(",\n");
+              printf("    {\n      \"fileSize\": %" PRIdMAX ",\n      \"fileList\": [\n        { \"filePath\": \"", (intmax_t)files->size);
+            } else {
+              printf(" },\n        { \"filePath\": \"");
+            }
+            sprintf(temp, "%s", tmpfile->d_name);
+            json_escape(temp, temp2);
+            fwprint(stdout, temp2, 0);
+            printf("\"");
+            printed = 1;
+          } else {
+            skippedfirst = 1;
+          }
+          tmpfile = tmpfile->duplicates;
+        }
+      } while (tmpfile != NULL);
+      if (printed) printf(" }\n      ]\n    }");
       comma = 1;
     }
+
     files = files->next;
   }
 
